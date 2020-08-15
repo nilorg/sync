@@ -28,15 +28,17 @@ func (r *RedisSync) NewMutex(key string, opts ...Option) Mutexer {
 		o(&optx)
 	}
 	rm := &redisMutex{
-		opts:  &optx,
-		redis: r.Redis,
-		key:   key,
+		sessionID: sessionID(),
+		opts:      &optx,
+		redis:     r.Redis,
+		key:       key,
 	}
 	return rm
 }
 
 // redisMutex redis互斥锁
 type redisMutex struct {
+	sessionID  string
 	opts       *Options
 	redis      *redis.Client
 	key        string
@@ -48,7 +50,7 @@ type redisMutex struct {
 func (rm *redisMutex) Lock() (err error) {
 	var flag bool
 	lockName := rm.lockName()
-	flag, err = rm.redis.SetNX(context.Background(), lockName, 1, rm.opts.LockTimeout).Result()
+	flag, err = rm.redis.SetNX(context.Background(), lockName, rm.sessionID, rm.opts.LockTimeout).Result()
 	if err != nil {
 		return
 	}
@@ -84,7 +86,7 @@ const (
 func (rm *redisMutex) Unlock() (err error) {
 	var flag bool
 	lockName := rm.lockName()
-	flag, err = rm.redis.Eval(context.Background(), luaRelease, []string{lockName}, 1).Bool()
+	flag, err = rm.redis.Eval(context.Background(), luaRelease, []string{lockName}, rm.sessionID).Bool()
 	if err != nil {
 		return
 	}
