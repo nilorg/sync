@@ -4,9 +4,10 @@ import "time"
 
 // Options ...
 type Options struct {
-	KeyPrefix   string
-	LockTimeout time.Duration
-	WaitRetry   time.Duration
+	KeyPrefix     string
+	LockTimeout   time.Duration
+	WaitRetry     time.Duration
+	RetryInterval time.Duration
 }
 
 // Option 为可选参数赋值的函数
@@ -15,9 +16,10 @@ type Option func(*Options)
 // newOptions 创建可选参数
 func newOptions(opts ...Option) *Options {
 	opt := &Options{
-		KeyPrefix:   "synclock:",
-		LockTimeout: 20 * time.Second,
-		WaitRetry:   6 * time.Second,
+		KeyPrefix:     "synclock:",
+		LockTimeout:   20 * time.Second,
+		WaitRetry:     6 * time.Second,
+		RetryInterval: 100 * time.Millisecond,
 	}
 	for _, o := range opts {
 		o(opt)
@@ -43,5 +45,12 @@ func LockTimeout(lockTimeout time.Duration) Option {
 func WaitRetry(waitRetry time.Duration) Option {
 	return func(o *Options) {
 		o.WaitRetry = waitRetry
+	}
+}
+
+// RetryInterval ...
+func RetryInterval(retryInterval time.Duration) Option {
+	return func(o *Options) {
+		o.RetryInterval = retryInterval
 	}
 }

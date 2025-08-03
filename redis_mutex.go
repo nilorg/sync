@@ -22,7 +22,7 @@ func NewRedisSync(redis *redis.Client, opts ...Option) *RedisSync {
 }
 
 // NewMutex 创建互斥锁
-func (r *RedisSync) NewMutex(key string, opts ...Option) Mutexer {
+func (r *RedisSync) NewMutex(key string, opts ...Option) WaitableMutexer {
 	optx := *r.Opts
 	for _, o := range opts {
 		o(&optx)
@@ -102,4 +102,29 @@ func (rm *redisMutex) Unlock() (err error) {
 
 func (rm *redisMutex) lockName() string {
 	return rm.opts.KeyPrefix + rm.key
+}
+
+// LockWait 等待加锁成功，会一直重试直到加锁成功或者上下文被取消
+func (rm *redisMutex) LockWait(ctx context.Context) (err error) {
+	for {
+		// 尝试加锁
+		err = rm.Lock()
+		if err == nil {
+			// 加锁成功
+			return nil
+		}
+
+		// 如果不是加锁失败错误，直接返回
+		if err != ErrLockFailed {
+			return err
+		}
+
+		// 加锁失败，等待一段时间后重试，同时监听上下文取消
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(rm.opts.RetryInterval):
+			// 继续重试
+		}
+	}
 }
